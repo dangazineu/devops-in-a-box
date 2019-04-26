@@ -2,77 +2,42 @@
 
 set -e
 
+DIR=$(dirname $0)
+NAME="artifactory"
 EXTERNAL_REGISTRY="docker.bintray.io"
 IMAGE="jfrog/artifactory-oss"
 VERSION="6.3.3"
 
-pull-image.sh $EXTERNAL_REGISTRY $IMAGE $VERSION
+DOCKER=/usr/bin/docker
 
-cat <<EOF > /etc/init.d/artifactory
+PULL_CMD="$DIR/pull-image.sh $EXTERNAL_REGISTRY $IMAGE $VERSION"
+RUN_CMD="$DOCKER run -p 8081:8081 -e START_TMO=120 -e RUNTIME_OPTS=\"-Xms512m -Xmx4g\" -v /vagrant/artifactory/data:/var/opt/jfrog/artifactory/data -v /vagrant/artifactory/logs:/var/opt/jfrog/artifactory/logs  -v /vagrant/artifactory/backup:/var/opt/jfrog/artifactory/backup  -v /vagrant/artifactory/etc:/var/opt/jfrog/artifactory/etc --restart=always --name $NAME $EXTERNAL_REGISTRY/$IMAGE:$VERSION"
+STOP_CMD="$DOCKER stop $NAME"
+RM_CMD="$DOCKER rm $NAME"
 
-#!/bin/sh
-### BEGIN INIT INFO
-# Provides:          artifactory
-# Required-Start:
-# Required-Stop:
-# Default-Start:
-# Default-Stop:
-# Description:       Artifactory
-### END INIT INFO
+cat <<EOF > /etc/systemd/system/artifactory.service
+[Unit]
+Description=Docker Artifactory Container
+After=docker.registry.service
+Requires=docker.registry.service
 
-start() {
-  if [ ! -f "$PIDFILE" ] || ! kill -0 $(cat "$PIDFILE"); then
-    echo 'Service not running' >&2
-    return 1
-  fi
-docker ps --filter "name=artifactory" | grep artifactoryasdasd
+[Service]
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-$STOP_CMD
+ExecStartPre=-$RM_CMD
+ExecStartPre=$PULL_CMD
+ExecStart=$RUN_CMD
 
-
-  docker run -d \
-    -p 8081:8081 \
-    -e START_TMO=120 \
-    -e RUNTIME_OPTS="-Xms512m -Xmx4g" \
-    -v /vagrant/artifactory/data:/var/opt/jfrog/artifactory/data \
-    -v /vagrant/artifactory/logs:/var/opt/jfrog/artifactory/logs  \
-    -v /vagrant/artifactory/backup:/var/opt/jfrog/artifactory/backup  \
-    -v /vagrant/artifactory/etc:/var/opt/jfrog/artifactory/etc \
-    --restart=always \
-    --name artifactory \
-    $EXTERNAL_REGISTRY/$IMAGE:$VERSION
-}
-
-stop() {
-  if [ ! -f "$PIDFILE" ] || ! kill -0 $(cat "$PIDFILE"); then
-    echo 'Service not running' >&2
-    return 1
-  fi
-  echo 'Stopping service…' >&2
-  kill -15 $(cat "$PIDFILE") && rm -f "$PIDFILE"
-  echo 'Service stopped' >&2
-}
-
-status() {
-  docker ps --filter "name=artifactory" | grep artifactory > /dev/null
-  return
-}
-
-case "$1" in
-  start)
-    start
-    ;;
-  stop)
-    stop
-    ;;
-  retart)
-    stop
-    start
-    ;;
-  *)
-    echo "Usage: $0 {start|stop|restart}"
-esac
-
-
+[Install]
+WantedBy=multi-user.target
 EOF
 
-chmod 755 /etc/init.d/artifactory.sh
+chmod 644 /etc/systemd/system/artifactory.service
 
+echo "Installing Artifactory..."
+
+systemctl daemon-reload
+systemctl start artifactory
+
+echo -e "\033[0;32mArtifactory installed!\033[0m"

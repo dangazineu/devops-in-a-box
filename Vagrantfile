@@ -22,14 +22,17 @@ Vagrant.configure("2") do |config|
   # live inside the box and be purged when we destroy it.
   config.vm.provision "installing apt-cacher", type: "shell", inline: "apt-get install -y apt-cacher-ng"
   # apt-cacher will be accessible through port 3142
-  config.vm.network "forwarded_port", guest: 3142, host: 3142
+  #config.vm.network "forwarded_port", guest: 3142, host: 3142
   # config.vm.provision "config apt-cacher", type: "shell", inline: "echo 'Acquire::http { Proxy \"http://localhost:3142\"; };' > /etc/apt/apt.conf.d/02proxy"
 
   config.vm.provision "installing docker", type: "shell", path: "scripts/install-docker.sh"
-  config.vm.provision "installing registry", type: "shell", inline: "docker run -d -p 5000:5000 -v /vagrant/docker-registry/data:/var/lib/registry --restart=always --name registry registry:2"
+  config.vm.provision "installing docker registry", type: "shell", path: "scripts/install-docker-registry.sh"
+  config.vm.provision "installing artifactory", type: "shell", path: "scripts/install-artifactory.sh"
+  #config.vm.provision "installing registry", type: "shell", inline: "docker run -d -p 5000:5000 -v /vagrant/docker-registry/data:/var/lib/registry --restart=always --name registry registry:2"
 
   # docker registry will be accessible through port 5000
   config.vm.network "forwarded_port", guest: 5000, host: 5000
+  config.vm.network "forwarded_port", guest: 8081, host: 8081
 
   # provision_artifactory config
 

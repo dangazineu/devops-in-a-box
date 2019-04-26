@@ -2,7 +2,7 @@
 
 set -e
 
-
+echo "Installing Docker..."
 
 apt-get remove -y docker docker-engine docker.io containerd runc || true
 
@@ -29,6 +29,9 @@ apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io
 
 groupadd docker || true
-gpasswd -a vagrant docker
+gpasswd -a vagrant docker || true
 
-service docker restart
+systemctl daemon-reload
+systemctl start docker
+
+echo -e "\033[0;32mDocker installed!\033[0m"
